@@ -4,8 +4,6 @@ Meeting notes for Linux that transcribe live, offline, and never lose a recordin
 
 meetnote records your microphone and what your computer plays, so both sides of a call are captured and labelled "Me" and "Others". A speech model running on your own CPU turns each sentence into text a second or two after it is spoken, and you write your own notes next to the live transcript. Everything is written to disk as it happens: if the app crashes, the network drops or the laptop loses power, what was recorded stays saved and meetnote continues from there.
 
-During the meeting you can ask Claude a question in a side panel, or in a small window that stays on top of the call, and get an answer in a few seconds. When you press Stop, Claude writes a summary with decisions and action items. Claude runs through your Claude Code login, so it uses your existing Claude subscription at no extra cost.
-
 ## Status
 
 | Part | State |
@@ -79,7 +77,7 @@ Two `parec` processes record the default input and the monitor of the default ou
 | `meetnote/` | the Python package (`src/meetnote`) and its tests |
 | `experiments/` | feasibility and end-to-end measurements |
 | `docs/` | design and testing notes |
-| `ROADMAP.md`, `STATUS.md`, `FINDINGS.md` | goal, current state, results |
+| `STATUS.md`, `FINDINGS.md` | current state, results |
 
 Run the tests with `cd meetnote && ../.venv/bin/python -m pytest`.
 

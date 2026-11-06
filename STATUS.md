@@ -4,21 +4,21 @@ Updated 2026-11-06.
 
 ## Done
 
-- **M1 (proposed): recorder, live transcript, notes, crash recovery.** Recording of both sides, the live offline transcript, notes and crash recovery work end to end on this laptop, tested with virtual devices.
-- **M2 (proposed): Claude assistant.** The Ask panel, the pop-out Ask window, the summary at Stop and Retry when offline all work with the real Claude CLI on the Max subscription.
+- **M1: recorder, live transcript, notes, crash recovery.** Recording of both sides, the live offline transcript, notes and crash recovery work end to end on this laptop, tested with virtual devices.
+- **M2: Claude assistant.** Merged in PR #1. The Ask panel, the pop-out Ask window, the summary at Stop and Retry when offline all work with the real Claude CLI on the Max subscription.
 - **Tests:** 51 automated tests pass (`cd meetnote && ../.venv/bin/python -m pytest`).
 - **Experiments:** 01 (feasibility) and 02 (end to end) are complete; results are in FINDINGS.md.
 
 ## Next
 
 - Altynbek's checks with real devices: headphones, Bluetooth, a real call, Wi-Fi off (docs/TESTING.md, part 3).
-- M3 (proposed): Opus compression of the audio, search across meetings, Markdown and Notion export, Kazakh if needed, a settings page.
+- M3: audio compression with Opus, search across meetings, export to Markdown and Notion, and a settings page.
+- M4: macOS.
 
 ## Open questions for Altynbek
 
 1. Which languages are the meetings in? Parakeet covers 25 European languages; Kazakh would need a second model.
 2. Does "in notion" mean sending notes to a Notion page, or only Notion-like editing?
-3. ROADMAP.md has no milestones yet. M1 to M4 are proposed in the session report.
 
 ## Known limits
 

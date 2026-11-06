@@ -17,6 +17,9 @@ dist/
 sessions/
 models/
 
+# The roadmap is kept locally and not published.
+ROADMAP.md
+
 # Editors
 .vscode/
 .idea/
