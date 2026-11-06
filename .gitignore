@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+build/
+dist/
+
+# Recordings, transcripts and models never enter the repo.
+# They live in ~/.local/share/meetnote/.
+*.pcm
+*.wav
+*.opus
+*.flac
+*.onnx
+sessions/
+models/
+
+# Editors
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>meetnote</title>
+<style>/*STYLE*/</style>
+</head>
+<body>
+<header id="bar">
+  <div class="rec">
+    <button id="start" class="primary" disabled>Start recording</button>
+    <button id="stop" class="danger" hidden>Stop</button>
+    <span id="timer" class="timer" hidden></span>
+  </div>
+  <input id="title" class="title" placeholder="Meeting title" maxlength="200" spellcheck="false">
+  <div class="meters">
+    <button id="mic" class="mic" title="Mute your microphone in meetnote: what you say is not recorded">Mic on</button>
+    <div class="meter"><span class="label">Me</span><span class="bar"><span id="lvl-me"></span></span><span id="dev-me" class="dev"></span></div>
+    <div class="meter"><span class="label">Others</span><span class="bar"><span id="lvl-others"></span></span><span id="dev-others" class="dev"></span></div>
+  </div>
+  <span id="status" class="status"></span>
+</header>
+<div id="banner" class="banner" hidden><span id="banner-text"></span><button id="banner-action" class="link"></button><button id="banner-close" class="link" title="Dismiss">Dismiss</button></div>
+<main>
+  <nav id="sessions-pane">
+    <div class="pane-title">Meetings</div>
+    <ul id="session-list"></ul>
+  </nav>
+  <section id="notes-pane">
+    <div class="pane-title">Notes <span id="saved" class="muted"></span><button id="preview-toggle" class="link">Preview</button></div>
+    <textarea id="notes" placeholder="Start a recording or open a meeting to take notes. Markdown works: # heading, - list, - [ ] task, **bold**." disabled></textarea>
+    <div id="notes-preview" class="markdown" hidden></div>
+  </section>
+  <section id="transcript-pane">
+    <div class="pane-title">Transcript <span id="transcript-note" class="muted"></span><button id="show-echo" class="link" hidden></button></div>
+    <div id="lines"><p class="empty">The transcript appears here, one line per sentence, a second or two after it is spoken.</p></div>
+    <button id="jump" class="jump" hidden>Jump to live</button>
+  </section>
+</main>
+<div id="setup" class="overlay" hidden>
+  <div class="dialog">
+    <h2>One-time setup</h2>
+    <p>meetnote transcribes on this computer with a speech model of about 670 MB. It is downloaded once and checked; your audio never leaves the computer.</p>
+    <p id="setup-progress" class="muted"></p>
+    <button id="setup-download" class="primary">Download the speech model</button>
+  </div>
+</div>
+<div id="confirm" class="overlay" hidden>
+  <div class="dialog">
+    <h2>A recording is running</h2>
+    <p>Stop it and quit, or keep recording with the window minimized.</p>
+    <div class="buttons"><button id="quit-keep">Keep recording</button><button id="quit-stop" class="danger">Stop and quit</button></div>
+  </div>
+</div>
+<script>window.MEETNOTE_VIEW = /*VIEW*/;</script>
+<script>/*SCRIPT*/</script>
+</body>
+</html>

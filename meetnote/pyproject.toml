@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meetnote"
+version = "0.1.0"
+description = "Lightweight, crash-safe meeting notes for Linux: live offline transcription, with Claude for questions and summaries."
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "numpy>=1.26",
+    "sherpa-onnx>=2.0",
+    "pywebview>=5.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+meetnote = "meetnote.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+meetnote = ["web/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
