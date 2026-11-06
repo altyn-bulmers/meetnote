@@ -8,7 +8,7 @@ The tests use a fake parec that writes a tone, a model-free VAD and recognizer, 
 
 ## 2. End to end with virtual devices
 
-`experiments/02_end_to_end/` drives the command-line app and the real window with two inaudible virtual devices. It measures delay, CPU and RAM, and it kills the app mid-meeting. See its README.
+`experiments/02_end_to_end/` drives the command-line app and the real window with two inaudible virtual devices. It measures delay, CPU and RAM, kills the app mid-meeting, and asks the real Claude a question and for a summary (`gui_check.py`; `--offline` checks the failure path with a dead proxy for meetnote only). See its README.
 
 ## 3. With real devices (by hand)
 
@@ -18,3 +18,6 @@ The tests use a fake parec that writes a tone, a model-free VAD and recognizer, 
 4. **Crash.** During a recording, run `pkill -9 -f "bin/meetnote"` and keep talking for a few seconds. Start meetnote again: a banner says the recording continued, and the transcript has the sentences spoken while the window was gone.
 5. **Power loss.** During a recording, hold the power button. After booting, start meetnote: the meeting is marked interrupted, everything up to about a second before the power cut is in the transcript, and Resume recording continues the same meeting.
 6. **Mute.** Press Mic on to mute; speech on the mic is no longer transcribed until you unmute.
+7. **Ask.** During a meeting, ask a question in the right panel. The answer streams in within a few seconds. Pop out opens a small window that stays on top of the call.
+8. **Offline.** Turn Wi-Fi off and ask a question: it fails within seconds and shows Retry. Turn Wi-Fi on and press Retry: the answer arrives.
+9. **Summary.** Press Stop: the Summary tab fills in within about 20 s. Stop a meeting while offline: the summary is marked as not written, and it is written the next time meetnote starts online.

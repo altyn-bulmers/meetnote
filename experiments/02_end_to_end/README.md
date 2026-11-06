@@ -34,6 +34,8 @@ Yes. Measured on 2026-11-06.
 
 **Window.** Two CSS animations, a blinking recording dot and sliding level meters, made the page repaint continuously. Removing them cut the window's share from 27% to 8% of one core.
 
+**Claude.** With the real CLI on the Max subscription, a question asked during the meeting was fully answered in 3.3 s, and the pop-out Ask window showed the same answer. The summary, with its four sections, appeared 16 s after Stop, transcript completion included. With `--offline`, a question failed after 1.0 s with Retry, and no `claude` process was left running.
+
 Phase A delays and phase B CPU of the four runs of `run.sh`:
 
 | Run | Phase A delays (s) | Phase B CPU (one core) |

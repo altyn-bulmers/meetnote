@@ -22,6 +22,6 @@ parec writes straight into the segment files and keeps recording when the app is
 
 With WirePlumber 0.4.17, a parec stream on `@DEFAULT_MONITOR@` and a parec stream with no device both move to the new default output and input when the default changes. parec appends to its output file every 200 ms. [01](experiments/01_feasibility/README.md)
 
-## `claude -p` answers in about 2 s on the Max subscription
+## Claude answers a question in about 3 s and writes the summary about 15 s after Stop
 
-With `--safe-mode --tools ""` and a short system prompt, the first token arrives after 1.96 s. A lost connection shows up after about 1 s as an `api_retry` event with `error_status: null`. [01](experiments/01_feasibility/README.md)
+With `claude -p --safe-mode --tools ""` on the Max subscription, the first token arrives after about 2 s. In the app, a question about the transcript was fully answered in 3.3 s, and the summary appeared 16 s after Stop, transcript completion included. A lost connection shows up after about 1 s as an `api_retry` event with `error_status: null`; in the app, an offline question failed after 1.0 s with Retry and left no CLI process running. [01](experiments/01_feasibility/README.md), [02](experiments/02_end_to_end/README.md)

@@ -17,7 +17,13 @@ const state = {
   follow: true,         // keep the transcript scrolled to the newest line
   notesTimer: null,
   preview: false,
+  tab: "notes",         // "notes" or "summary"
+  summaryRaw: "",       // Markdown of the summary shown
+  cards: new Map(),     // question id -> {el, raw}
 };
+
+const ASK_VIEW = window.MEETNOTE_VIEW === "ask";
+if (ASK_VIEW) document.body.classList.add("view-ask");
 
 // --- small helpers -------------------------------------------------------------
 
@@ -194,6 +200,9 @@ async function openSession(id) {
   $("notes").disabled = false;
   renderPreview();
   $("saved").textContent = "";
+  renderQA(s.qa, s.title);
+  setSummary(s.summary, s.summary_status === "pending" && !s.summary ? "pending" : null);
+  $("tab-summary").classList.remove("new");
   $("transcript-note").textContent = s.transcribing && !s.recording ? "transcribing…" : "";
   updateEchoButton();
   hideBanner();
@@ -274,13 +283,134 @@ async function saveNotesNow() {
 
 function renderPreview() { $("notes-preview").innerHTML = markdown($("notes").value); }
 
+function showNotesBody() {
+  const notes = state.tab === "notes";
+  $("notes").hidden = !notes || state.preview;
+  $("notes-preview").hidden = !notes || !state.preview;
+  $("summary-view").hidden = notes;
+  $("preview-toggle").hidden = !notes;
+  $("saved").hidden = !notes;
+  $("preview-toggle").textContent = state.preview ? "Edit" : "Preview";
+  $("tab-notes").classList.toggle("active", notes);
+  $("tab-summary").classList.toggle("active", !notes);
+}
+
 $("preview-toggle").onclick = () => {
   state.preview = !state.preview;
   if (state.preview) renderPreview();
-  $("notes").hidden = state.preview;
-  $("notes-preview").hidden = !state.preview;
-  $("preview-toggle").textContent = state.preview ? "Edit" : "Preview";
+  showNotesBody();
 };
+$("tab-notes").onclick = () => { state.tab = "notes"; showNotesBody(); };
+$("tab-summary").onclick = () => { state.tab = "summary"; $("tab-summary").classList.remove("new"); showNotesBody(); };
+
+// --- summary ---------------------------------------------------------------------
+
+const SUMMARY_STATE = {
+  waiting: "Finishing the transcript; Claude writes the summary next.",
+  writing: "Claude is writing the summary…",
+  pending: "The summary is not written yet. It is retried when meetnote starts, or now with the button.",
+  empty: "Nothing to summarize yet.",
+};
+
+function setSummary(text, status, reason) {
+  state.summaryRaw = text || "";
+  $("summary").innerHTML = text ? markdown(text) : '<p class="empty">The summary appears here after you press Stop.</p>';
+  let note = status ? SUMMARY_STATE[status] || "" : (text ? "Written by Claude from the transcript and your notes." : "");
+  if (status === "failed") note = `Not written: ${reason}`;
+  $("summary-status").textContent = note;
+  $("summary-copy").hidden = !text || status === "writing";
+  $("summary-run").hidden = status === "waiting" || status === "writing";
+  $("summary-run").textContent = text ? "Rewrite" : (status === "failed" ? "Try again" : "Write summary");
+}
+
+$("summary-run").onclick = () => { if (state.current) call("summarize", state.current); };
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  }
+}
+
+$("summary-copy").onclick = async () => {
+  const ok = await copyText(state.summaryRaw);
+  $("summary-status").textContent = ok ? "Copied as Markdown." : "Could not copy; select the text instead.";
+};
+
+// --- Ask Claude ------------------------------------------------------------------
+
+function qaCard(qid, question) {
+  let card = state.cards.get(qid);
+  if (card) return card;
+  const box = $("qa");
+  const empty = box.querySelector(".empty");
+  if (empty) empty.remove();
+  const root = el("div", "qa-item");
+  root.append(el("div", "q", question), el("div", "a markdown"), el("div", "qa-status"));
+  box.append(root);
+  card = { el: root, raw: "", frame: 0 };
+  state.cards.set(qid, card);
+  return card;
+}
+
+function renderAnswer(card) {
+  card.frame = 0;
+  card.el.querySelector(".a").innerHTML = markdown(card.raw);
+  $("qa").scrollTop = $("qa").scrollHeight;
+}
+
+function setCardStatus(card, qid, text, failed) {
+  const status = card.el.querySelector(".qa-status");
+  status.replaceChildren(el("span", "", text));
+  card.el.classList.toggle("failed", !!failed);
+  if (failed) {
+    const retry = el("button", "link", "Retry");
+    retry.onclick = () => call("retry", state.current, qid);
+    status.append(retry);
+  }
+}
+
+function renderQA(items, title) {
+  $("qa").replaceChildren();
+  state.cards.clear();
+  $("ask-meeting").textContent = title ? `· ${title}` : "";
+  if (!items.length) {
+    $("qa").append(el("p", "empty", "Ask about the meeting while it runs. Claude reads the last 10 minutes of transcript and your notes. Nothing is sent until you ask."));
+  }
+  for (const q of items) {
+    const card = qaCard(q.id, q.question);
+    card.raw = q.answer || "";
+    renderAnswer(card);
+    if (q.status === "answered") setCardStatus(card, q.id, q.seconds ? `${q.seconds} s` : "");
+    else if (q.status === "failed") setCardStatus(card, q.id, q.reason, true);
+    else setCardStatus(card, q.id, "No answer was received.", true);
+  }
+}
+
+function sendQuestion(text) {
+  const question = (text ?? $("question").value).trim();
+  if (!question || !state.current) return;
+  $("question").value = "";
+  call("ask", state.current, question, $("whole").checked);
+}
+
+$("send").onclick = () => sendQuestion();
+$("question").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); sendQuestion(); }
+});
+for (const chip of document.querySelectorAll(".chip")) chip.onclick = () => sendQuestion(chip.dataset.q);
+$("popout").onclick = () => call("popout_ask");
+document.addEventListener("keydown", (ev) => {
+  if (ev.ctrlKey && ev.key.toLowerCase() === "k") { ev.preventDefault(); $("question").focus(); }
+});
 
 // --- closing during a recording and first-run setup ------------------------------
 
@@ -295,8 +425,58 @@ $("setup-download").onclick = () => {
 
 // --- events from Python ----------------------------------------------------------
 
+const ASK_EVENTS = new Set(["answer_start", "answer_delta", "answer_done", "answer_failed", "viewing"]);
+
 function handle(kind, d) {
+  if (ASK_VIEW && !ASK_EVENTS.has(kind)) return;
   switch (kind) {
+    case "viewing":
+      if (ASK_VIEW) openQuestions(d.id);
+      break;
+    case "answer_start": {
+      if (d.id !== state.current) break;
+      const card = qaCard(d.qid, d.question);
+      card.raw = "";
+      renderAnswer(card);
+      setCardStatus(card, d.qid, "Claude is answering…");
+      break;
+    }
+    case "answer_delta": {
+      const card = state.cards.get(d.qid);
+      if (d.id !== state.current || !card) break;
+      card.raw += d.text;
+      if (!card.frame) card.frame = requestAnimationFrame(() => renderAnswer(card));
+      break;
+    }
+    case "answer_done": {
+      const card = state.cards.get(d.qid);
+      if (d.id !== state.current || !card) break;
+      card.raw = d.answer;
+      renderAnswer(card);
+      setCardStatus(card, d.qid, `${d.seconds} s`);
+      break;
+    }
+    case "answer_failed": {
+      const card = state.cards.get(d.qid);
+      if (d.id !== state.current || !card) break;
+      setCardStatus(card, d.qid, d.reason, true);
+      break;
+    }
+    case "summary_state":
+      if (d.id !== state.current) break;
+      if (d.state === "writing") state.summaryBuffer = "";
+      setSummary(d.state === "writing" ? "" : state.summaryRaw, d.state, d.reason);
+      break;
+    case "summary_delta":
+      if (d.id !== state.current) break;
+      state.summaryBuffer = (state.summaryBuffer || "") + d.text;
+      $("summary").innerHTML = markdown(state.summaryBuffer);
+      break;
+    case "summary_done":
+      if (d.id !== state.current) break;
+      setSummary(d.summary, null);
+      if (state.tab !== "summary") $("tab-summary").classList.add("new");
+      break;
     case "levels":
       setLevel("me", d.me);
       setLevel("others", d.others);
@@ -374,8 +554,20 @@ window.meetnote = {
 
 // --- start-up ----------------------------------------------------------------------
 
+async function openQuestions(id) {
+  if (!id) return;
+  const q = await call("questions", id);
+  state.current = id;
+  renderQA(q.qa, q.title);
+}
+
 async function init() {
   const st = await call("state");
+  if (ASK_VIEW) {
+    await openQuestions(st.viewing || st.session);
+    $("question").focus();
+    return;
+  }
   state.recording = st.recording;
   state.recordingId = st.session;
   state.since = st.since;
