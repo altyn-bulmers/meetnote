@@ -18,7 +18,8 @@ import webbrowser
 from pathlib import Path
 from typing import Any
 
-from . import devices, models, session
+from . import assistant, devices, models, session, transcriber
+from .assistant import Assistant
 from .core import Controller, acquire_app_lock
 from .durable import JsonlTail, read_json
 from .recorder import RATE
@@ -104,8 +105,11 @@ class App:
     def __init__(self) -> None:
         self.pusher = Pusher()
         self.ctl = Controller(emit=self._on_event)
+        self.assistant = Assistant(self.ctl.cfg, self.pusher.emit)
         self.api = Api(self)
         self.window: Any = None
+        self.ask_window: Any = None
+        self.viewing: str | None = None  # the meeting open in the main window
         self._recent: dict[str, list[dict]] = {}  # newest lines per session, for echo marking
         self._allow_close = False
         self._downloading = False
@@ -115,8 +119,10 @@ class App:
     def _on_event(self, kind: str, data: dict) -> None:
         if kind == "line":
             self._on_line(data)
-        else:
-            self.pusher.emit(kind, data)
+            return
+        self.pusher.emit(kind, data)
+        if kind == "stopped":
+            self.summarize(data["id"])
 
     def _on_line(self, rec: dict) -> None:
         recent = self._recent.setdefault(rec["id"], [])
@@ -156,6 +162,8 @@ class App:
                         else devices.default_names()),
             "models_missing": [n for n in models.DEFAULT if not models.is_installed(n)],
             "downloading": self._downloading,
+            "viewing": self.viewing,
+            "claude": assistant.claude_binary() is not None,
         }
 
     def open(self, sid: str) -> dict:
@@ -165,8 +173,34 @@ class App:
                                  key=lambda r: r["w0"]))
         self._recent[sid] = [dict(r) for r in lines[-30:]]
         self.ctl.watch(sid, tail)  # new lines arrive as events from here on
+        if self.viewing != sid:
+            self.viewing = sid
+            self.pusher.emit("viewing", {"id": sid})  # the Ask window follows the main window
         return {**summary(s), "recording": self.ctl.recorder is not None and self.ctl.session is s,
-                "transcribing": self.ctl.transcribing(sid), "lines": lines, "notes": s.read_notes()}
+                "transcribing": self.ctl.transcribing(sid), "lines": lines, "notes": s.read_notes(),
+                "qa": assistant.history(s),
+                "summary": s.summary_path.read_text(encoding="utf-8") if s.summary_path.exists() else "",
+                "summary_status": s.meta.get("summary")}
+
+    def questions(self, sid: str) -> dict:
+        s = self.session(sid)
+        return {"id": sid, "title": s.title, "qa": assistant.history(s)}
+
+    def summarize(self, sid: str) -> bool:
+        """Write the summary once the transcript of `sid` is complete."""
+        s = self.session(sid)
+
+        def ready() -> bool:
+            if self.ctl.recorder is not None and self.ctl.session is not None and self.ctl.session.id == sid:
+                return False  # still recording
+            if self.ctl.transcribing(sid):
+                return False
+            if transcriber.needs_work(session.load(sid)):
+                self.ctl.ensure_transcriber(s)  # a transcriber died before finishing
+                return False
+            return True
+
+        return self.assistant.summarize(s, ready)
 
     # --- background work -------------------------------------------------------------
 
@@ -218,6 +252,31 @@ class App:
         self._allow_close = True
         self.window.destroy()
 
+    def _on_main_closed(self) -> None:
+        if self.ask_window is not None:
+            self.ask_window.destroy()
+
+    def open_ask_window(self) -> None:
+        """A small Ask window that stays on top of the meeting app."""
+        import webview
+
+        if self.ask_window is not None:
+            self.ask_window.restore()
+            self.ask_window.show()
+            return
+        window = webview.create_window(
+            "meetnote: Ask", html=page("ask"), js_api=self.api, width=440, height=680,
+            min_size=(320, 400), on_top=True, background_color="#f7f7f5", text_select=True)
+
+        def closed() -> None:
+            if window in self.pusher.windows:
+                self.pusher.windows.remove(window)
+            self.ask_window = None
+
+        window.events.closed += closed
+        self.pusher.windows.append(window)
+        self.ask_window = window
+
     def run(self) -> int:
         import webview
 
@@ -225,10 +284,15 @@ class App:
             print("meetnote is already running", file=sys.stderr)
             return 1
         self.ctl.recover()
+        if assistant.claude_binary():
+            for s in session.list_sessions():
+                if s.meta.get("summary") == "pending":
+                    self.summarize(s.id)  # it could not be written last time
         self.window = webview.create_window(
-            "meetnote", html=page(), js_api=self.api, width=1280, height=800,
-            min_size=(900, 560), background_color="#f7f7f5", text_select=True)
+            "meetnote", html=page(), js_api=self.api, width=1360, height=820,
+            min_size=(1060, 580), background_color="#f7f7f5", text_select=True)
         self.window.events.closing += self._on_closing
+        self.window.events.closed += self._on_main_closed
         self.pusher.windows.append(self.window)
         # A daemon thread: pywebview's own start-up thread is not a daemon and
         # would keep the process alive after the window closes.
@@ -283,6 +347,24 @@ class Api:
 
     def download_models(self) -> None:
         self._app.download_models()
+
+    def ask(self, sid: str, question: str, whole: bool = False) -> str:
+        question = str(question).strip()[:4000]
+        if not question:
+            raise ValueError("empty question")
+        return self._app.assistant.ask(self._app.session(str(sid)), question, bool(whole))
+
+    def retry(self, sid: str, qid: str) -> None:
+        self._app.assistant.retry(self._app.session(str(sid)), str(qid))
+
+    def questions(self, sid: str) -> dict:
+        return self._app.questions(str(sid))
+
+    def summarize(self, sid: str) -> bool:
+        return self._app.summarize(str(sid))
+
+    def popout_ask(self) -> None:
+        self._app.open_ask_window()
 
     def open_link(self, url: str) -> None:
         url = str(url)

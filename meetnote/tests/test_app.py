@@ -19,8 +19,12 @@ def app():
     a.pusher = FakePusher()
     from meetnote.core import Controller
     a.ctl = Controller(emit=a._on_event, poll_devices=False)
+    from meetnote.assistant import Assistant
+    a.assistant = Assistant(a.ctl.cfg, a.pusher.emit)
     a.api = Api(a)
     a.window = None
+    a.ask_window = None
+    a.viewing = None
     a._recent = {}
     a._allow_close = False
     a._downloading = False
@@ -50,6 +54,23 @@ def test_notes_and_title_are_saved(app):
     assert opened["notes"] == "- [ ] send the slides"
     assert opened["title"] == "New title"
     assert opened["lines"] == []
+
+
+def test_open_includes_questions_and_summary(app):
+    s = session.Session.create("m")
+    s.summary_path.write_text("## Summary\nDone.\n")
+    opened = app.api.open(s.id)
+    assert opened["qa"] == [] and opened["summary"] == "## Summary\nDone.\n"
+    assert app.viewing == s.id
+    assert ("viewing", {"id": s.id}) in app.pusher.events  # the Ask window follows
+
+
+def test_questions_are_validated(app):
+    s = session.Session.create("m")
+    with pytest.raises(ValueError):
+        app.api.ask(s.id, "   ")
+    with pytest.raises(ValueError):
+        app.api.ask("../x", "Why?")
 
 
 def test_live_lines_get_echo_flags(app):

@@ -33,6 +33,15 @@ def test_load_rejects_ids_that_could_escape(bad):
         session.load(bad)
 
 
+def test_two_objects_for_one_session_keep_each_others_changes():
+    s = Session.create("x")
+    a, b = session.load(s.id), session.load(s.id)
+    a.update(title="Renamed")
+    b.update(summary="done")  # b still holds the old title in memory
+    meta = session.load(s.id).meta
+    assert meta["title"] == "Renamed" and meta["summary"] == "done"
+
+
 def test_segments_and_notes_persist():
     s = Session.create("x")
     s.add_segment("audio/me-1.pcm", "me")

@@ -4,14 +4,15 @@ Updated 2026-11-06.
 
 ## Done
 
-- Recording of both sides, live offline transcript, notes and crash recovery work end to end on this laptop, tested with virtual devices. This is milestone M1 as proposed for ROADMAP.md.
-- 40 automated tests pass (`cd meetnote && ../.venv/bin/python -m pytest`).
-- Experiment 01 (feasibility) and experiment 02 (end to end) are complete; results are in FINDINGS.md.
+- **M1 (proposed): recorder, live transcript, notes, crash recovery.** Recording of both sides, the live offline transcript, notes and crash recovery work end to end on this laptop, tested with virtual devices.
+- **M2 (proposed): Claude assistant.** The Ask panel, the pop-out Ask window, the summary at Stop and Retry when offline all work with the real Claude CLI on the Max subscription.
+- **Tests:** 51 automated tests pass (`cd meetnote && ../.venv/bin/python -m pytest`).
+- **Experiments:** 01 (feasibility) and 02 (end to end) are complete; results are in FINDINGS.md.
 
 ## Next
 
-- M2, the Claude assistant: an Ask panel and side window that answer questions with the recent transcript, a summary at Stop, and Retry when offline.
-- Altynbek's checks with real devices: headphones, Bluetooth and a real call (docs/TESTING.md, part 3).
+- Altynbek's checks with real devices: headphones, Bluetooth, a real call, Wi-Fi off (docs/TESTING.md, part 3).
+- M3 (proposed): Opus compression of the audio, search across meetings, Markdown and Notion export, Kazakh if needed, a settings page.
 
 ## Open questions for Altynbek
 
@@ -23,4 +24,4 @@ Updated 2026-11-06.
 
 - When the CPU throttles or is busy, a line can take up to 5 s to appear instead of 1–2 s.
 - Device following was tested with virtual devices only.
-- Audio is stored as raw PCM, about 230 MB per hour for both sides; compression is planned.
+- Audio is stored as raw PCM, about 230 MB per hour for both sides.

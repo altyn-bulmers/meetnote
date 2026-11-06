@@ -28,14 +28,36 @@
     <ul id="session-list"></ul>
   </nav>
   <section id="notes-pane">
-    <div class="pane-title">Notes <span id="saved" class="muted"></span><button id="preview-toggle" class="link">Preview</button></div>
+    <div class="pane-title">
+      <button id="tab-notes" class="tab active">Notes</button>
+      <button id="tab-summary" class="tab">Summary</button>
+      <span id="saved" class="muted"></span>
+      <button id="preview-toggle" class="link push">Preview</button>
+    </div>
     <textarea id="notes" placeholder="Start a recording or open a meeting to take notes. Markdown works: # heading, - list, - [ ] task, **bold**." disabled></textarea>
     <div id="notes-preview" class="markdown" hidden></div>
+    <div id="summary-view" hidden>
+      <div id="summary" class="markdown"></div>
+      <div class="summary-bar"><span id="summary-status" class="muted"></span><button id="summary-copy" class="link" hidden>Copy</button><button id="summary-run" class="link">Write summary</button></div>
+    </div>
   </section>
   <section id="transcript-pane">
-    <div class="pane-title">Transcript <span id="transcript-note" class="muted"></span><button id="show-echo" class="link" hidden></button></div>
+    <div class="pane-title">Transcript <span id="transcript-note" class="muted"></span><button id="show-echo" class="link push" hidden></button></div>
     <div id="lines"><p class="empty">The transcript appears here, one line per sentence, a second or two after it is spoken.</p></div>
     <button id="jump" class="jump" hidden>Jump to live</button>
+  </section>
+  <section id="ask-pane">
+    <div class="pane-title">Ask Claude <span id="ask-meeting" class="muted"></span><button id="popout" class="link push" title="A small window that stays on top of the meeting">Pop out</button></div>
+    <div id="qa"><p class="empty">Ask about the meeting while it runs. Claude reads the last 10 minutes of transcript and your notes. Nothing is sent until you ask.</p></div>
+    <div class="ask-box">
+      <div class="chips">
+        <button class="chip" data-q="Recap the last few minutes in three bullet points.">Recap</button>
+        <button class="chip" data-q="What was I just asked, and how could I answer?">What was I asked?</button>
+        <button class="chip" data-q="Explain the technical terms used in the last few minutes.">Explain terms</button>
+      </div>
+      <textarea id="question" rows="2" placeholder="Ask Claude (Enter sends, Shift+Enter adds a line, Ctrl+K jumps here)"></textarea>
+      <div class="ask-actions"><label class="muted"><input type="checkbox" id="whole"> whole meeting</label><button id="send" class="primary">Ask</button></div>
+    </div>
   </section>
 </main>
 <div id="setup" class="overlay" hidden>

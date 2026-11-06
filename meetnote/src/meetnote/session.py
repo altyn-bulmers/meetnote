@@ -16,13 +16,22 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from . import paths
 from .durable import atomic_write, fsync_dir, read_json, write_json
 
 ID_RE = re.compile(r"^\d{8}-\d{6}(-[a-z0-9-]{1,40})?$")
 SOURCES = ("me", "others")
+
+# One lock per session folder, shared by every Session object in this process.
+_LOCKS: dict[str, threading.RLock] = {}
+_LOCKS_GUARD = threading.Lock()
+
+
+def _lock_for(folder: Path) -> threading.RLock:
+    with _LOCKS_GUARD:
+        return _LOCKS.setdefault(str(folder), threading.RLock())
 
 
 def slug(title: str) -> str:
@@ -36,7 +45,7 @@ def now_iso() -> str:
 class Session:
     def __init__(self, folder: Path):
         self.folder = folder
-        self._lock = threading.RLock()
+        self._lock = _lock_for(folder)
         self.meta: dict[str, Any] = read_json(folder / "session.json")
 
     @classmethod
@@ -81,16 +90,22 @@ class Session:
         with self._lock:
             self.meta = read_json(self.folder / "session.json")
 
-    def update(self, **changes: Any) -> None:
+    def _change(self, edit: Callable[[dict[str, Any]], None]) -> None:
+        """Re-read, edit and replace session.json, so no writer overwrites another's change."""
         with self._lock:
-            self.meta.update(changes)
+            try:
+                self.meta = read_json(self.folder / "session.json")
+            except (OSError, ValueError):
+                pass  # keep the copy in memory; the write below repairs the file
+            edit(self.meta)
             write_json(self.folder / "session.json", self.meta)
 
+    def update(self, **changes: Any) -> None:
+        self._change(lambda meta: meta.update(changes))
+
     def add_segment(self, file: str, src: str) -> None:
-        with self._lock:
-            self.meta["segments"].append(
-                {"file": file, "src": src, "pid": None, "started": time.time(), "closed": False})
-            write_json(self.folder / "session.json", self.meta)
+        segment = {"file": file, "src": src, "pid": None, "started": time.time(), "closed": False}
+        self._change(lambda meta: meta["segments"].append(segment))
 
     def set_segment_pid(self, file: str, pid: int) -> None:
         self._edit_segment(file, pid=pid)
@@ -99,19 +114,18 @@ class Session:
         self._edit_segment(file, closed=True)
 
     def _edit_segment(self, file: str, **changes: Any) -> None:
-        with self._lock:
-            for seg in self.meta["segments"]:
+        def edit(meta: dict[str, Any]) -> None:
+            for seg in meta["segments"]:
                 if seg["file"] == file:
                     seg.update(changes)
-            write_json(self.folder / "session.json", self.meta)
+        self._change(edit)
 
     def open_segments(self) -> list[dict]:
         return [s for s in self.meta["segments"] if not s["closed"]]
 
     def add_device(self, src: str, device: str) -> None:
-        with self._lock:
-            self.meta["devices"].append({"t": now_iso(), "src": src, "device": device})
-            write_json(self.folder / "session.json", self.meta)
+        entry = {"t": now_iso(), "src": src, "device": device}
+        self._change(lambda meta: meta["devices"].append(entry))
 
     # --- files ----------------------------------------------------------------
 
